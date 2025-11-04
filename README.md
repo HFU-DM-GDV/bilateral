@@ -7,3 +7,25 @@ It provides an interactive plot where clicking on an intensity patch updates the
 Vibe coded by: Uwe Hahne
 
 Date: November 2025
+
+## Installation
+
+Make sure you have the required libraries installed. You can install them using pip:
+
+```bash
+pip install opencv-python
+pip install matplotlib
+```
+
+The code has been developed and tested with Python 3.12.2 using OpenCV 4.12.0.88 and Matplotlib 3.10.7.
+
+## Usage
+
+Run the script using Python:
+
+```bash
+python bilateralFilter.py
+```
+
+Click on the intensity patch to see how the bilateral filter kernel changes based on the selected pixel's intensity.
+
