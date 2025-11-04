@@ -26,9 +26,9 @@ def range_gaussian(img, img_center, sigma_r):
 def make_step_patch(n, step_col=None, low=0.0, high=1.0):
     if step_col is None:
         step_col = n // 2
-    I = np.full((n, n), low, dtype=float)
-    I[:, step_col:] = high
-    return I
+    img = np.full((n, n), low, dtype=float)
+    img[:, step_col:] = high
+    return img
 
 def compute_bilateral_kernel(image, n_kernel=51, sigma_s=7.0, sigma_r=0.1):
     n = image.shape[0]
@@ -52,32 +52,34 @@ def main():
     sigma_r = 0.10  # range sigma (intensity units, assuming [0,1])
 
     # Synthetic intensity patch: vertical step edge
+    # img = make_step_patch(n, step_col=n//2, low=0.2, high=0.8)
+    # use exemplary real image
     img_path = 'images/Bumbu_Rawon.jpg'
     img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     # Check if image is loaded
     if img is None:
         raise FileNotFoundError(f"Image not found at path: {img_path}")
     img = cv2.resize(img, (n, n), interpolation=cv2.INTER_LANCZOS4)
-    I = np.asarray(img, dtype=float) / 255.0
+    img_array = np.asarray(img, dtype=float) / 255.0
 
-    X, Y, K, gauss_spatial, _ = compute_bilateral_kernel(I, n_kernel=n_kernel, sigma_s=sigma_s, sigma_r=sigma_r)
+    X, Y, K, gauss_spatial, _ = compute_bilateral_kernel(img_array, n_kernel=n_kernel, sigma_s=sigma_s, sigma_r=sigma_r)
 
     # Plot: intensity patch and 3D bilateral kernel
     fig = plt.figure(figsize=(12, 5))
 
     ax_img = fig.add_subplot(1, 2, 1)
-    _ = ax_img.imshow(I, cmap='gray', vmin=0, vmax=1, origin='upper')
-    ax_img.set_title('Intensity patch (step edge)')
+    _ = ax_img.imshow(img_array, cmap='gray', vmin=0, vmax=1, origin='upper')
+    ax_img.set_title('Example image')
     def _on_click(event):
         if event.inaxes is not ax_img or event.xdata is None or event.ydata is None:
             return
         j = int(round(event.xdata))
         i = int(round(event.ydata))
-        i = max(0, min(I.shape[0] - 1, i))
-        j = max(0, min(I.shape[1] - 1, j))
+        i = max(0, min(img_array.shape[0] - 1, i))
+        j = max(0, min(img_array.shape[1] - 1, j))
 
-        I0 = I[i, j]
-        img_patch = I[i - n_kernel//2:i + n_kernel//2 + 1, j - n_kernel//2:j + n_kernel//2 + 1]
+        I0 = img_array[i, j]
+        img_patch = img_array[i - n_kernel//2:i + n_kernel//2 + 1, j - n_kernel//2:j + n_kernel//2 + 1]
         gauss_range = range_gaussian(img_patch, I0, sigma_r)
         bilateral_kernel = gauss_spatial * gauss_range
         bilateral_kernel /= bilateral_kernel.sum() + 1e-12
@@ -85,6 +87,12 @@ def main():
         for coll in ax_img.collections:
             if coll.get_label() == 'center':
                 coll.set_offsets([[j, i]]) # pyright: ignore[reportAttributeAccessIssue]
+                break
+
+        # Update rectangle position
+        for patch in ax_img.patches:
+            if hasattr(patch, 'get_label') and patch.get_label() == 'kernel':
+                patch.set_xy((j - half_k, i - half_k))
                 break
 
         ax3d.clear()
@@ -96,8 +104,14 @@ def main():
         fig.canvas.draw_idle()
 
     fig.canvas.mpl_connect('button_press_event', _on_click)
-    ax_img.scatter([I.shape[1]//2], [I.shape[0]//2], c='r', s=30, label='center')
-    ax_img.set_xticks([]); ax_img.set_yticks([])
+    ax_img.scatter([img_array.shape[1]//2], [img_array.shape[0]//2], c='r', s=30, label='center')
+    half_k = n_kernel // 2
+    center_y, center_x = img_array.shape[0]//2, img_array.shape[1]//2
+    rect = plt.Rectangle((center_x - half_k, center_y - half_k), n_kernel, n_kernel, 
+                          linewidth=2, edgecolor='r', facecolor='none', label='kernel')
+    ax_img.add_patch(rect)
+    ax_img.set_xticks([])
+    ax_img.set_yticks([])
     ax_img.legend(loc='lower right', fontsize=8)
 
     ax3d = fig.add_subplot(1, 2, 2, projection='3d')
